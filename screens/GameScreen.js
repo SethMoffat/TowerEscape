@@ -1,6 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, SafeAreaView } from 'react-native';
+import {
+    StyleSheet,
+    Text,
+    View,
+    TouchableOpacity,
+    SafeAreaView,
+    Modal,
+  } from 'react-native';
 import { MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+
 
 
 const GameScreen = () => {
@@ -9,6 +18,12 @@ const GameScreen = () => {
   const [score, setScore] = useState(0);
   const [totalKeyPieces, setTotalKeyPieces] = useState(0);
 const [keyPiecesCollected, setKeyPiecesCollected] = useState(0);
+const [isPaused, setIsPaused] = useState(false);
+  const navigation = useNavigation();
+
+  const togglePause = () => {
+    setIsPaused(!isPaused);
+  };
 
 
   useEffect(() => {
@@ -38,20 +53,20 @@ const [keyPiecesCollected, setKeyPiecesCollected] = useState(0);
       newMap[currentX][currentY] = 'path';
     }
   
-    for (let i = 0; i < numRows; i++) {
-      for (let j = 0; j < numCols; j++) {
-        if (newMap[i][j] === 'empty') {
-          const randomCell = Math.random();
-          if (randomCell < 0.7) {
-            newMap[i][j] = 'empty';
-          } else if (randomCell < 0.9) {
-            newMap[i][j] = 'obstacle';
-          } else {
-            newMap[i][j] = 'key';
+    newMap.forEach((row, i) => {
+        row.forEach((cell, j) => {
+          if (cell === 'empty') {
+            const randomCell = Math.random();
+            if (randomCell < 0.7) {
+              newMap[i][j] = 'empty';
+            } else if (randomCell < 0.9) {
+              newMap[i][j] = 'obstacle';
+            } else {
+              newMap[i][j] = 'key';
+            }
           }
-        }
-      }
-    }
+        });
+      });
   
     const pathKeys = newMap
       .flatMap((row, rowIndex) => row.map((cell, colIndex) => ({ cell, rowIndex, colIndex })))
@@ -167,6 +182,49 @@ const [keyPiecesCollected, setKeyPiecesCollected] = useState(0);
         </View>
       </View>
     </View>
+    <TouchableOpacity
+        style={styles.pauseButton}
+        onPress={togglePause}
+      >
+        <FontAwesome5 name="pause" size={24} color="black" />
+      </TouchableOpacity>
+
+      {/* Add pause modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={isPaused}
+        onRequestClose={togglePause}
+      >
+        <View style={styles.modalBackground}>
+          <View style={styles.modalView}>
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={() => {
+                togglePause();
+                navigation.goBack();
+              }}
+            >
+              <FontAwesome5 name="arrow-left" size={24} color="white" />
+              <Text style={styles.modalButtonText}>Go Back</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={togglePause}
+            >
+              <FontAwesome5 name="play" size={24} color="white" />
+              <Text style={styles.modalButtonText}>Resume</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={() => navigation.navigate('Settings')}
+            >
+              <FontAwesome5 name="cog" size={24} color="white" />
+              <Text style={styles.modalButtonText}>Settings</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
   </SafeAreaView>
   );
 };
@@ -264,6 +322,39 @@ const styles = StyleSheet.create({
   },
   keyPieces: {
     fontSize: 18,
+  },
+  pauseButton: {
+    position: 'absolute',
+    bottom: 10,
+    right: 10,
+  },
+  modalBackground: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalView: {
+    width: '80%',
+    backgroundColor: '#4A4AFF',
+    borderRadius: 20,
+    padding: 20,
+    alignItems: 'center',
+  },
+  modalButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#2D2DFF',
+    paddingHorizontal: 30,
+    paddingVertical: 10,
+    borderRadius: 10,
+    marginBottom: 20,
+  },
+  modalButtonText: {
+    fontSize: 16,
+    color: 'white',
+    marginLeft: 10,
   },
 });
 
