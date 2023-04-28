@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     StyleSheet,
     Text,
@@ -10,33 +10,46 @@ import {
 import { MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 
-
+const Cell = React.memo(({ cell, isRunner }) => (
+  <View
+    style={[
+      styles.cell,
+      cell === 'obstacle' ? styles.obstacle : {},
+      cell === 'key' ? styles.key : {},
+      isRunner ? styles.runner : {},
+    ]}
+  >
+    <Text style={{ color: 'transparent' }}>{cell}</Text>
+  </View>
+));
 
 const GameScreen = () => {
   const [map, setMap] = useState([]);
   const [runnerPosition, setRunnerPosition] = useState({ x: 0, y: 0 });
   const [score, setScore] = useState(0);
   const [totalKeyPieces, setTotalKeyPieces] = useState(0);
-const [keyPiecesCollected, setKeyPiecesCollected] = useState(0);
-const [isPaused, setIsPaused] = useState(false);
+  const [keyPiecesCollected, setKeyPiecesCollected] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+  const [hasClearedObstacles, setHasClearedObstacles] = useState(false);
   const navigation = useNavigation();
 
   const togglePause = () => {
     setIsPaused(!isPaused);
   };
 
-
   useEffect(() => {
     generateRandomMap();
   }, []);
-  
+
   useEffect(() => {
-    if (keyPiecesCollected === totalKeyPieces) {
+    if (keyPiecesCollected === totalKeyPieces && map.length > 0) {
       clearBottomRowObstacles();
+      setKeyPiecesCollected(0); // Reset key pieces collected after clearing the obstacles
+      setHasClearedObstacles(true);
     }
-  }, [keyPiecesCollected, totalKeyPieces, map]);
+  }, [keyPiecesCollected, totalKeyPieces]);
   
-  const generateRandomMap = () => {
+  const generateRandomMap = (startColumn) => {
     const numRows = 20;
     const numCols = 12;
     const newMap = Array.from({ length: numRows }, () =>
@@ -44,7 +57,7 @@ const [isPaused, setIsPaused] = useState(false);
     );
   
     let currentX = 0;
-    let currentY = numCols - 1;
+    let currentY = startColumn !== undefined ? startColumn : numCols - 1;
   
     while (currentX < numRows - 1) {
       const move = Math.floor(Math.random() * 3);
@@ -74,7 +87,6 @@ const [isPaused, setIsPaused] = useState(false);
               (i < numRows - 1 && newMap[i + 1][j] === 'path') ||
               (j > 0 && newMap[i][j - 1] === 'path') ||
               (j < numCols - 1 && newMap[i][j + 1] === 'path');
-              newMap[numRows - 1].fill('obstacle');
   
             if (!hasPathNeighbor) {
               newMap[i][j] = 'obstacle';
@@ -86,11 +98,17 @@ const [isPaused, setIsPaused] = useState(false);
       });
     });
   
+    newMap[numRows - 1].fill('obstacle');
+  
     const pathKeys = newMap
-      .flatMap((row, rowIndex) => row.map((cell, colIndex) => ({ cell, rowIndex, colIndex })))
-      .filter(({ cell }) => cell === 'path');
+    .flatMap((row, rowIndex) => row.map((cell, colIndex) => ({ cell, rowIndex, colIndex })))
+    .filter(({ cell }) => cell === 'path');
+
+  // Add a check to make sure pathKeys is not empty
+  if (pathKeys.length > 0) {
     const randomPathKey = pathKeys[Math.floor(Math.random() * pathKeys.length)];
     newMap[randomPathKey.rowIndex][randomPathKey.colIndex] = 'key';
+  }
   
     // Count the total number of key pieces
     const keyPieceCount = newMap.reduce(
@@ -99,15 +117,17 @@ const [isPaused, setIsPaused] = useState(false);
     );
   
     setTotalKeyPieces(keyPieceCount);
-    setKeyPiecesCollected(0); // Reset key pieces collected
-    setMap(newMap);
-    setRunnerPosition({ x: 0, y: numCols - 1 });
-  };
+  setKeyPiecesCollected(0); // Reset key pieces collected
+  setMap(newMap);
+  setRunnerPosition({ x: 0, y: currentY });
 
-  const moveRunner = (direction) => {
-    if (isPaused) return;
-    let newX = runnerPosition.x;
-    let newY = runnerPosition.y;
+  
+};
+
+const moveRunner = (direction) => {
+  if (isPaused || !map.length) return;
+  let newX = runnerPosition.x;
+  let newY = runnerPosition.y;
   
     if (direction === 'up' && runnerPosition.x > 0) {
       newX--;
@@ -123,37 +143,40 @@ const [isPaused, setIsPaused] = useState(false);
       setRunnerPosition({ x: newX, y: newY });
   
       if (map[newX][newY] === 'key') {
-        setScore(score + 1);
+        setScore((prevScore) => prevScore + 1); // Use a callback to update the score
         const updatedMap = [...map];
         updatedMap[newX][newY] = 'empty';
         setMap(updatedMap);
-        setKeyPiecesCollected(keyPiecesCollected + 1); // Increment key pieces collected
+        setKeyPiecesCollected((prevKeyPiecesCollected) => prevKeyPiecesCollected + 1); // Increment key pieces collected
       }
-  
-      // Restart the level when the runner is on the second last row and goes down
-      if (newX === map.length - 1 && direction === 'down') {
-        // Move runner to the top row
-        setRunnerPosition({ x: 0, y: newY });
-        
-        // Generate a new random map
-        generateRandomMap();
-        setScore(score + 1);
-      }
-    }
-   
+      
+      // ...
+      
+      if (newX === map.length - 1 && direction === 'down' && hasClearedObstacles) {
+    // Move runner to the top row
+    setRunnerPosition({ x: 0, y: newY });
+
+    // Generate a new random map with the same column index at the top
+    generateRandomMap(newY);
+    setScore((prevScore) => prevScore + 1); // Use a callback to update the score
+
+    // Reset hasClearedObstacles
+    setHasClearedObstacles(false);
+  }
+};
   };
   
-  const clearBottomRowObstacles = () => {
-    const numRows = map.length;
+  const clearBottomRowObstacles = (mapToClear) => {
+    const numRows = mapToClear.length;
     const bottomRowIndex = numRows - 1;
   
-    const updatedMap = [...map];
+    const updatedMap = [...mapToClear];
   
     for (let colIndex = 0; colIndex < updatedMap[bottomRowIndex].length; colIndex++) {
       updatedMap[bottomRowIndex][colIndex] = 'empty';
     }
   
-    setMap(updatedMap);
+    return updatedMap;
   };
 
 
@@ -161,73 +184,66 @@ const [isPaused, setIsPaused] = useState(false);
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.keyPiecesContainer}>
-    <Text style={styles.keyPieces}>
-      Key Pieces: {keyPiecesCollected}/{totalKeyPieces}
-    </Text>
-  </View>
-    {/* Render the score */}
-    <View style={styles.scoreContainer}>
-      <FontAwesome5 name="star" size={24} color="gold" />
-      <Text style={styles.score}>{score}</Text>
-    </View>
-
-    {/* Render the map and runner */}
-    <View style={styles.map}>
-      {map.map((row, rowIndex) => (
-        <View key={rowIndex} style={styles.row}>
-          {row.map((cell, cellIndex) => (
-            <View
-              key={`${rowIndex}-${cellIndex}`}
-              style={[
-                styles.cell,
-                cell === 'obstacle' ? styles.obstacle : {},
-                cell === 'key' ? styles.key : {},
-                runnerPosition.x === rowIndex && runnerPosition.y === cellIndex ? styles.runner : {},
-              ]}
-            >
-              {/* Wrap cell content in a Text component */}
-              <Text style={{ color: 'transparent' }}>{cell}</Text>
-            </View>
-          ))}
-        </View>
-      ))}
-    </View>
-
-    {/* Render controls */}
-    <View style={styles.controls}>
-      <View style={styles.controller}>
-        <View style={styles.controllerRow}>
-          <View style={styles.controllerButton} />
-          <TouchableOpacity style={styles.controllerButton} onPress={() => moveRunner('up')}>
-            <MaterialCommunityIcons name="arrow-up" size={24} color="black" />
-          </TouchableOpacity>
-          <View style={styles.controllerButton} />
-        </View>
-        <View style={styles.controllerRow}>
-          <TouchableOpacity style={styles.controllerButton} onPress={() => moveRunner('left')}>
-            <MaterialCommunityIcons name="arrow-left" size={24} color="black" />
-          </TouchableOpacity>
-          <View style={styles.controllerButton} />
-          <TouchableOpacity style={styles.controllerButton} onPress={() => moveRunner('right')}>
-            <MaterialCommunityIcons name="arrow-right" size={24} color="black" />
-          </TouchableOpacity>
-        </View>
-        <View style={styles.controllerRow}>
-          <View style={styles.controllerButton} />
-          <TouchableOpacity style={styles.controllerButton} onPress={() => moveRunner('down')}>
-            <MaterialCommunityIcons name="arrow-down" size={24} color="black" />
-          </TouchableOpacity>
-          <View style={styles.controllerButton} />
+        <Text style={styles.keyPieces}>
+          Key Pieces: {keyPiecesCollected}/{totalKeyPieces}
+        </Text>
+      </View>
+      {/* Render the score */}
+      <View style={styles.scoreContainer}>
+        <FontAwesome5 name="star" size={24} color="gold" />
+        <Text style={styles.score}>{score}</Text>
+      </View>
+  
+      {/* Render the map and runner */}
+      <View style={styles.map}>
+        {map.map((row, rowIndex) => (
+          <View key={rowIndex} style={styles.row}>
+            {row.map((cell, cellIndex) => (
+              <Cell
+                key={`${rowIndex}-${cellIndex}`}
+                cell={cell}
+                isRunner={runnerPosition.x === rowIndex && runnerPosition.y === cellIndex}
+              />
+            ))}
+          </View>
+        ))}
+      </View>
+  
+      {/* Render controls */}
+      <View style={styles.controls}>
+        <View style={styles.controller}>
+          <View style={styles.controllerRow}>
+            <View style={styles.controllerButton} />
+            <TouchableOpacity style={styles.controllerButton} onPress={() => moveRunner('up')}>
+              <MaterialCommunityIcons name="arrow-up" size={24} color="black" />
+            </TouchableOpacity>
+            <View style={styles.controllerButton} />
+          </View>
+          <View style={styles.controllerRow}>
+            <TouchableOpacity style={styles.controllerButton} onPress={() => moveRunner('left')}>
+              <MaterialCommunityIcons name="arrow-left" size={24} color="black" />
+            </TouchableOpacity>
+            <View style={styles.controllerButton} />
+            <TouchableOpacity style={styles.controllerButton} onPress={() => moveRunner('right')}>
+              <MaterialCommunityIcons name="arrow-right" size={24} color="black" />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.controllerRow}>
+            <View style={styles.controllerButton} />
+            <TouchableOpacity style={styles.controllerButton} onPress={() => moveRunner('down')}>
+              <MaterialCommunityIcons name="arrow-down" size={24} color="black" />
+            </TouchableOpacity>
+            <View style={styles.controllerButton} />
+          </View>
         </View>
       </View>
-    </View>
-    <TouchableOpacity
+      <TouchableOpacity
         style={styles.pauseButton}
         onPress={togglePause}
       >
         <FontAwesome5 name="pause" size={24} color="black" />
       </TouchableOpacity>
-
+  
       {/* Add pause modal */}
       <Modal
         animationType="slide"
@@ -366,6 +382,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 10,
     right: 10,
+    margin:12,
   },
   modalBackground: {
     flex: 1,
