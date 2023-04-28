@@ -29,6 +29,13 @@ const [isPaused, setIsPaused] = useState(false);
   useEffect(() => {
     generateRandomMap();
   }, []);
+  
+  useEffect(() => {
+    if (keyPiecesCollected === totalKeyPieces) {
+      clearBottomRowObstacles();
+    }
+  }, [keyPiecesCollected, totalKeyPieces, map]);
+  
   const generateRandomMap = () => {
     const numRows = 20;
     const numCols = 12;
@@ -53,20 +60,31 @@ const [isPaused, setIsPaused] = useState(false);
       newMap[currentX][currentY] = 'path';
     }
   
+    // Clear obstacles around the path
     newMap.forEach((row, i) => {
-        row.forEach((cell, j) => {
-          if (cell === 'empty') {
-            const randomCell = Math.random();
-            if (randomCell < 0.7) {
-              newMap[i][j] = 'empty';
-            } else if (randomCell < 0.9) {
+      row.forEach((cell, j) => {
+        if (cell === 'empty') {
+          const randomCell = Math.random();
+          if (randomCell < 0.7) {
+            newMap[i][j] = 'empty';
+          } else if (randomCell < 0.9) {
+            // Check if any neighboring cell is a path
+            const hasPathNeighbor =
+              (i > 0 && newMap[i - 1][j] === 'path') ||
+              (i < numRows - 1 && newMap[i + 1][j] === 'path') ||
+              (j > 0 && newMap[i][j - 1] === 'path') ||
+              (j < numCols - 1 && newMap[i][j + 1] === 'path');
+              newMap[numRows - 1].fill('obstacle');
+  
+            if (!hasPathNeighbor) {
               newMap[i][j] = 'obstacle';
-            } else {
-              newMap[i][j] = 'key';
             }
+          } else {
+            newMap[i][j] = 'key';
           }
-        });
+        }
       });
+    });
   
     const pathKeys = newMap
       .flatMap((row, rowIndex) => row.map((cell, colIndex) => ({ cell, rowIndex, colIndex })))
@@ -87,6 +105,7 @@ const [isPaused, setIsPaused] = useState(false);
   };
 
   const moveRunner = (direction) => {
+    if (isPaused) return;
     let newX = runnerPosition.x;
     let newY = runnerPosition.y;
   
@@ -113,11 +132,31 @@ const [isPaused, setIsPaused] = useState(false);
   
       // Restart the level when the runner is on the second last row and goes down
       if (newX === map.length - 1 && direction === 'down') {
+        // Move runner to the top row
+        setRunnerPosition({ x: 0, y: newY });
+        
+        // Generate a new random map
         generateRandomMap();
         setScore(score + 1);
       }
     }
+   
   };
+  
+  const clearBottomRowObstacles = () => {
+    const numRows = map.length;
+    const bottomRowIndex = numRows - 1;
+  
+    const updatedMap = [...map];
+  
+    for (let colIndex = 0; colIndex < updatedMap[bottomRowIndex].length; colIndex++) {
+      updatedMap[bottomRowIndex][colIndex] = 'empty';
+    }
+  
+    setMap(updatedMap);
+  };
+
+
 
   return (
     <SafeAreaView style={styles.container}>
