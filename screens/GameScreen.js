@@ -6,6 +6,7 @@ import {
     TouchableOpacity,
     SafeAreaView,
     Modal,
+    Animated,
   } from 'react-native';
 import { MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -31,6 +32,8 @@ const GameScreen = () => {
   const [keyPiecesCollected, setKeyPiecesCollected] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [hasClearedObstacles, setHasClearedObstacles] = useState(false);
+  const [isBottomRowBlinking, setIsBottomRowBlinking] = useState(false);
+  
   const navigation = useNavigation();
 
   const togglePause = () => {
@@ -55,6 +58,32 @@ const GameScreen = () => {
     const newMap = Array.from({ length: numRows }, () =>
       Array.from({ length: numCols }, () => 'empty')
     );
+  
+    const hasKeyNeighbor = (newMap, x, y) => {
+      const numRows = newMap.length;
+      const numCols = newMap[0].length;
+  
+      const positionsToCheck = [
+        { x: x - 1, y },
+        { x: x + 1, y },
+        { x, y: y - 1 },
+        { x, y: y + 1 },
+      ];
+  
+      for (const position of positionsToCheck) {
+        if (
+          position.x >= 0 &&
+          position.x < numRows &&
+          position.y >= 0 &&
+          position.y < numCols &&
+          newMap[position.x][position.y] === 'key'
+        ) {
+          return true;
+        }
+      }
+  
+      return false;
+    };
   
     let currentX = 0;
     let currentY = startColumn !== undefined ? startColumn : numCols - 1;
@@ -81,6 +110,7 @@ const GameScreen = () => {
           if (randomCell < 0.7) {
             newMap[i][j] = 'empty';
           } else if (randomCell < 0.9) {
+            // Check if any neighboring cell is a path
             const hasPathNeighbor =
               (i > 0 && newMap[i - 1][j] === 'path') ||
               (i < numRows - 1 && newMap[i + 1][j] === 'path') ||
@@ -90,6 +120,12 @@ const GameScreen = () => {
             if (!hasPathNeighbor) {
               newMap[i][j] = 'obstacle';
             }
+          } else {
+            if (!hasKeyNeighbor(newMap, i, j)) {
+              newMap[i][j] = 'key';
+            } else {
+              newMap[i][j] = 'empty';
+            }
           }
         }
       });
@@ -97,23 +133,56 @@ const GameScreen = () => {
   
     newMap[numRows - 1].fill('obstacle');
   
-    // Place keys on path cells with a certain probability
-    const keyPlacementProbability = 0.4; // Adjust this value to generate the desired number of keys
-    let keyCount = 0;
-    newMap.forEach((row, i) => {
-      row.forEach((cell, j) => {
-        if (cell === 'path' && Math.random() < keyPlacementProbability) {
-          newMap[i][j] = 'key';
-          keyCount++;
-        }
-      });
-    });
+    const pathKeys = newMap
+      .flatMap((row, rowIndex) => row.map((cell, colIndex) => ({ cell, rowIndex, colIndex })))
+      .filter(({ cell }) => cell === 'path');
+  
+    // Add a check to make sure pathKeys is not empty
+    if (pathKeys.length > 0) {
+      const randomPathKey = pathKeys[Math.floor(Math.random() * pathKeys.length)];
+      newMap[randomPathKey.rowIndex][randomPathKey.colIndex] = 'key';
+    }
   
     // Count the total number of key pieces
-    setTotalKeyPieces(keyCount);
+    const keyPieceCount = newMap.reduce(
+      (count, row) => count + row.filter((cell) => cell === 'key').length,
+      0
+    );
+  
+    setTotalKeyPieces(keyPieceCount);
     setKeyPiecesCollected(0); // Reset key pieces collected
     setMap(newMap);
-    setRunnerPosition({ x: 0, y: currentY });
+  
+    // Find a suitable runner position, avoiding obstacles and keys
+    let foundSuitablePosition = false;
+    let newRunnerX = 0;
+    let newRunnerY = currentY;
+  
+    while (!foundSuitablePosition) {
+      const positionsToCheck = [
+        { x: newRunnerX, y: newRunnerY - 1 },
+        { x: newRunnerX, y: newRunnerY + 1 },
+      ];
+  
+      const positionIsValid = (position) =>
+        position.y >= 0 &&
+        position.y < numCols &&
+        newMap[position.x][position.y] !== 'obstacle' &&
+        newMap[position.x][position.y] !== 'key';
+  
+      const validPositions = positionsToCheck.filter(positionIsValid);
+  
+      if (validPositions.length > 0) {
+        const randomIndex = Math.floor(Math.random() * validPositions.length);
+        const newPosition = validPositions[randomIndex];
+        newRunnerY = newPosition.y;
+        foundSuitablePosition = true;
+      } else {
+        newRunnerY = Math.floor(Math.random() * numCols);
+      }
+    }
+  
+    setRunnerPosition({ x: newRunnerX, y: newRunnerY });
   };
 
   const moveRunner = (direction) => {
@@ -171,6 +240,9 @@ const GameScreen = () => {
     for (let colIndex = 0; colIndex < updatedMap[bottomRowIndex].length; colIndex++) {
       updatedMap[bottomRowIndex][colIndex] = 'empty';
     }
+  
+    setIsBottomRowBlinking(true); // Start blinking
+    setTimeout(() => setIsBottomRowBlinking(false), 500); // Stop blinking after 500ms
   
     return updatedMap;
   };
@@ -344,6 +416,9 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     justifyContent: 'space-around',
     alignItems: 'center',
+  },
+  blinkGreen: {
+    backgroundColor: 'rgba(0, 255, 0, 0.5)',
   },
   horizontalButtons: {
     flexDirection: 'column',
