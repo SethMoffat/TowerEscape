@@ -11,13 +11,14 @@ import {
 import { MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 
-const Cell = React.memo(({ cell, isRunner }) => (
+const Cell = React.memo(({ cell, isRunner, isBlinking }) => (
   <View
     style={[
       styles.cell,
       cell === 'obstacle' ? styles.obstacle : {},
       cell === 'key' ? styles.key : {},
       isRunner ? styles.runner : {},
+      isBlinking ? { backgroundColor: 'green' } : {}, // Add this line to apply the green background color when isBlinking is true
     ]}
   >
     <Text style={{ color: 'transparent' }}>{cell}</Text>
@@ -33,6 +34,7 @@ const GameScreen = () => {
   const [isPaused, setIsPaused] = useState(false);
   const [hasClearedObstacles, setHasClearedObstacles] = useState(false);
   const [isBottomRowBlinking, setIsBottomRowBlinking] = useState(false);
+  const [blinkIntervalId, setBlinkIntervalId] = useState(null);
   
   const navigation = useNavigation();
 
@@ -58,6 +60,7 @@ const GameScreen = () => {
     const newMap = Array.from({ length: numRows }, () =>
       Array.from({ length: numCols }, () => 'empty')
     );
+    setIsBottomRowBlinking(false);
   
     const hasKeyNeighbor = (newMap, x, y) => {
       const numRows = newMap.length;
@@ -213,13 +216,16 @@ const GameScreen = () => {
       // ...
   
       if (newX === map.length - 1 && direction === 'down' && hasClearedObstacles) {
+        // Clear the blink interval
+        clearInterval(blinkIntervalId);
+      
         // Move runner to the top row
         setRunnerPosition({ x: 0, y: newY });
-  
+      
         // Generate a new random map with the same column index at the top
         generateRandomMap(newY);
         setScore((prevScore) => prevScore + 1); // Use a callback to update the score
-  
+      
         // Reset hasClearedObstacles
         setHasClearedObstacles(false);
       }
@@ -241,11 +247,20 @@ const GameScreen = () => {
       updatedMap[bottomRowIndex][colIndex] = 'empty';
     }
   
-    setIsBottomRowBlinking(true); // Start blinking
-    setTimeout(() => setIsBottomRowBlinking(false), 500); // Stop blinking after 500ms
+    // Start blinking
+    setIsBottomRowBlinking(true);
+  
+    // Use setInterval for continuous blinking
+    const blinkInterval = setInterval(() => {
+      setIsBottomRowBlinking((prev) => !prev);
+    }, 500);
+  
+    // Save the interval ID to clear it later when needed
+    setBlinkIntervalId(blinkInterval);
   
     return updatedMap;
   };
+  
 
 
 
@@ -264,18 +279,19 @@ const GameScreen = () => {
   
       {/* Render the map and runner */}
       <View style={styles.map}>
-        {map.map((row, rowIndex) => (
-          <View key={rowIndex} style={styles.row}>
-            {row.map((cell, cellIndex) => (
-              <Cell
-                key={`${rowIndex}-${cellIndex}`}
-                cell={cell}
-                isRunner={runnerPosition.x === rowIndex && runnerPosition.y === cellIndex}
-              />
-            ))}
-          </View>
-        ))}
-      </View>
+  {map.map((row, rowIndex) => (
+    <View key={rowIndex} style={styles.row}>
+      {row.map((cell, cellIndex) => (
+        <Cell
+          key={`${rowIndex}-${cellIndex}`}
+          cell={cell}
+          isRunner={runnerPosition.x === rowIndex && runnerPosition.y === cellIndex}
+          isBlinking={rowIndex === map.length - 1 && isBottomRowBlinking} // Pass the isBlinking prop to cells in the bottom row
+        />
+      ))}
+    </View>
+  ))}
+</View>
   
       {/* Render controls */}
       <View style={styles.controls}>
@@ -459,6 +475,7 @@ const styles = StyleSheet.create({
   },
   keyPieces: {
     fontSize: 18,
+    margin: 12,
   },
   pauseButton: {
     position: 'absolute',
