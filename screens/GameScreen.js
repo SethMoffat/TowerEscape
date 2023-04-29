@@ -43,7 +43,7 @@ const GameScreen = () => {
 
   useEffect(() => {
     if (keyPiecesCollected === totalKeyPieces && map.length > 0) {
-      clearBottomRowObstacles();
+      setMap(clearBottomRowObstacles(map)); // Use the returned map from clearBottomRowObstacles
       setKeyPiecesCollected(0); // Reset key pieces collected after clearing the obstacles
       setHasClearedObstacles(true);
     }
@@ -81,7 +81,6 @@ const GameScreen = () => {
           if (randomCell < 0.7) {
             newMap[i][j] = 'empty';
           } else if (randomCell < 0.9) {
-            // Check if any neighboring cell is a path
             const hasPathNeighbor =
               (i > 0 && newMap[i - 1][j] === 'path') ||
               (i < numRows - 1 && newMap[i + 1][j] === 'path') ||
@@ -91,8 +90,6 @@ const GameScreen = () => {
             if (!hasPathNeighbor) {
               newMap[i][j] = 'obstacle';
             }
-          } else {
-            newMap[i][j] = 'key';
           }
         }
       });
@@ -100,34 +97,29 @@ const GameScreen = () => {
   
     newMap[numRows - 1].fill('obstacle');
   
-    const pathKeys = newMap
-    .flatMap((row, rowIndex) => row.map((cell, colIndex) => ({ cell, rowIndex, colIndex })))
-    .filter(({ cell }) => cell === 'path');
-
-  // Add a check to make sure pathKeys is not empty
-  if (pathKeys.length > 0) {
-    const randomPathKey = pathKeys[Math.floor(Math.random() * pathKeys.length)];
-    newMap[randomPathKey.rowIndex][randomPathKey.colIndex] = 'key';
-  }
+    // Place keys on path cells with a certain probability
+    const keyPlacementProbability = 0.4; // Adjust this value to generate the desired number of keys
+    let keyCount = 0;
+    newMap.forEach((row, i) => {
+      row.forEach((cell, j) => {
+        if (cell === 'path' && Math.random() < keyPlacementProbability) {
+          newMap[i][j] = 'key';
+          keyCount++;
+        }
+      });
+    });
   
     // Count the total number of key pieces
-    const keyPieceCount = newMap.reduce(
-      (count, row) => count + row.filter((cell) => cell === 'key').length,
-      0
-    );
-  
-    setTotalKeyPieces(keyPieceCount);
-  setKeyPiecesCollected(0); // Reset key pieces collected
-  setMap(newMap);
-  setRunnerPosition({ x: 0, y: currentY });
+    setTotalKeyPieces(keyCount);
+    setKeyPiecesCollected(0); // Reset key pieces collected
+    setMap(newMap);
+    setRunnerPosition({ x: 0, y: currentY });
+  };
 
-  
-};
-
-const moveRunner = (direction) => {
-  if (isPaused || !map.length) return;
-  let newX = runnerPosition.x;
-  let newY = runnerPosition.y;
+  const moveRunner = (direction) => {
+    if (isPaused || !map.length) return;
+    let newX = runnerPosition.x;
+    let newY = runnerPosition.y;
   
     if (direction === 'up' && runnerPosition.x > 0) {
       newX--;
@@ -143,27 +135,31 @@ const moveRunner = (direction) => {
       setRunnerPosition({ x: newX, y: newY });
   
       if (map[newX][newY] === 'key') {
-        setScore((prevScore) => prevScore + 1); // Use a callback to update the score
         const updatedMap = [...map];
         updatedMap[newX][newY] = 'empty';
         setMap(updatedMap);
         setKeyPiecesCollected((prevKeyPiecesCollected) => prevKeyPiecesCollected + 1); // Increment key pieces collected
       }
-      
+  
       // ...
-      
+  
       if (newX === map.length - 1 && direction === 'down' && hasClearedObstacles) {
-    // Move runner to the top row
-    setRunnerPosition({ x: 0, y: newY });
+        // Move runner to the top row
+        setRunnerPosition({ x: 0, y: newY });
+  
+        // Generate a new random map with the same column index at the top
+        generateRandomMap(newY);
+        setScore((prevScore) => prevScore + 1); // Use a callback to update the score
+  
+        // Reset hasClearedObstacles
+        setHasClearedObstacles(false);
+      }
+    }
+  };
 
-    // Generate a new random map with the same column index at the top
-    generateRandomMap(newY);
-    setScore((prevScore) => prevScore + 1); // Use a callback to update the score
-
-    // Reset hasClearedObstacles
-    setHasClearedObstacles(false);
-  }
-};
+  const restartGame = () => {
+    generateRandomMap();
+    setScore(0);
   };
   
   const clearBottomRowObstacles = (mapToClear) => {
@@ -246,40 +242,51 @@ const moveRunner = (direction) => {
   
       {/* Add pause modal */}
       <Modal
-        animationType="slide"
-        transparent={true}
-        visible={isPaused}
-        onRequestClose={togglePause}
+  animationType="slide"
+  transparent={true}
+  visible={isPaused}
+  onRequestClose={togglePause}
+>
+  <View style={styles.modalBackground}>
+    <View style={styles.modalView}>
+      <TouchableOpacity
+        style={styles.modalButton}
+        onPress={() => {
+          togglePause();
+          navigation.goBack();
+        }}
       >
-        <View style={styles.modalBackground}>
-          <View style={styles.modalView}>
-            <TouchableOpacity
-              style={styles.modalButton}
-              onPress={() => {
-                togglePause();
-                navigation.goBack();
-              }}
-            >
-              <FontAwesome5 name="arrow-left" size={24} color="white" />
-              <Text style={styles.modalButtonText}>Go Back</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.modalButton}
-              onPress={togglePause}
-            >
-              <FontAwesome5 name="play" size={24} color="white" />
-              <Text style={styles.modalButtonText}>Resume</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.modalButton}
-              onPress={() => navigation.navigate('Settings')}
-            >
-              <FontAwesome5 name="cog" size={24} color="white" />
-              <Text style={styles.modalButtonText}>Settings</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+        <FontAwesome5 name="arrow-left" size={24} color="white" />
+        <Text style={styles.modalButtonText}>Go Back</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.modalButton}
+        onPress={togglePause}
+      >
+        <FontAwesome5 name="play" size={24} color="white" />
+        <Text style={styles.modalButtonText}>Resume</Text>
+      </TouchableOpacity>
+      {/* Add the restart button here */}
+      <TouchableOpacity
+        style={styles.modalButton}
+        onPress={() => {
+          togglePause();
+          restartGame();
+        }}
+      >
+        <FontAwesome5 name="redo" size={24} color="white" />
+        <Text style={styles.modalButtonText}>Restart</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.modalButton}
+        onPress={() => navigation.navigate('Settings')}
+      >
+        <FontAwesome5 name="cog" size={24} color="white" />
+        <Text style={styles.modalButtonText}>Settings</Text>
+      </TouchableOpacity>
+    </View>
+  </View>
+</Modal>
   </SafeAreaView>
   );
 };
