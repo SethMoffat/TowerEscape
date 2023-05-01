@@ -11,14 +11,15 @@ import {
 import { MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 
-const Cell = React.memo(({ cell, isRunner, isBlinking }) => (
+const Cell = React.memo(({ cell, isRunner, isBlinking, isEnemy }) => (
   <View
     style={[
       styles.cell,
       cell === 'obstacle' ? styles.obstacle : {},
       cell === 'key' ? styles.key : {},
       isRunner ? styles.runner : {},
-      isBlinking ? { backgroundColor: 'green' } : {}, // Add this line to apply the green background color when isBlinking is true
+      isBlinking ? { backgroundColor: 'green' } : {},
+      isEnemy ? styles.enemy : {}, // Add this line to apply the enemy styles when isEnemy is true
     ]}
   >
     <Text style={{ color: 'transparent' }}>{cell}</Text>
@@ -246,6 +247,10 @@ const numCols = 12;
   };
 
   const moveEnemyTowardsRunner = () => {
+    if (!runnerPosition || !enemyPosition) {
+      return;
+    }
+  
     const runnerX = runnerPosition.x;
     const runnerY = runnerPosition.y;
     const enemyX = enemyPosition.x;
@@ -277,6 +282,64 @@ const numCols = 12;
       setEnemyPosition({ x: newEnemyX, y: newEnemyY });
     }
   };
+
+  const aStarPathfinding = (map, start, end) => {
+    const openSet = [start];
+    const cameFrom = {};
+    const gScore = {};
+    const fScore = {};
+  
+    for (let x = 0; x < map.length; x++) {
+      for (let y = 0; y < map[0].length; y++) {
+        gScore[`${x}-${y}`] = Infinity;
+        fScore[`${x}-${y}`] = Infinity;
+      }
+    }
+  
+    gScore[`${start.x}-${start.y}`] = 0;
+    fScore[`${start.x}-${start.y}`] = heuristic(start, end);
+  
+    while (openSet.length > 0) {
+      let lowestIndex = 0;
+      for (let i = 1; i < openSet.length; i++) {
+        if (fScore[`${openSet[i].x}-${openSet[i].y}`] < fScore[`${openSet[lowestIndex].x}-${openSet[lowestIndex].y}`]) {
+          lowestIndex = i;
+        }
+      }
+  
+      const current = openSet[lowestIndex];
+  
+      if (current.x === end.x && current.y === end.y) {
+        const path = [];
+        let temp = current;
+        while (temp) {
+          path.unshift(temp);
+          temp = cameFrom[`${temp.x}-${temp.y}`];
+        }
+        return path;
+      }
+  
+      openSet.splice(lowestIndex, 1);
+  
+      for (const neighbor of getNeighbors(map, current.x, current.y)) {
+        const tentativeGScore = gScore[`${current.x}-${current.y}`] + 1;
+  
+        if (tentativeGScore < gScore[`${neighbor.x}-${neighbor.y}`]) {
+          cameFrom[`${neighbor.x}-${neighbor.y}`] = current;
+          gScore[`${neighbor.x}-${neighbor.y}`] = tentativeGScore;
+          fScore[`${neighbor.x}-${neighbor.y}`] = tentativeGScore + heuristic(neighbor, end);
+  
+          if (!openSet.some((node) => node.x === neighbor.x && node.y === neighbor.y)) {
+            openSet.push(neighbor);
+          }
+        }
+      }
+    }
+  
+    return [];
+  };
+
+  
 
   const moveRunner = (direction) => {
     if (isPaused || !map.length) return;
@@ -369,7 +432,7 @@ const numCols = 12;
   
       {/* Render the map and runner */}
       <View style={styles.map}>
-  {map.map((row, rowIndex) => (
+      {map.map((row, rowIndex) => (
     <View key={rowIndex} style={styles.row}>
       {row.map((cell, cellIndex) => (
         <Cell
@@ -600,6 +663,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: 'white',
     marginLeft: 10,
+  },
+  enemy: {
+    backgroundColor: 'purple',
   },
 });
 
