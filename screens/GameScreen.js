@@ -18,8 +18,8 @@ const Cell = React.memo(({ cell, isRunner, isBlinking, isEnemy }) => (
       cell === 'obstacle' ? styles.obstacle : {},
       cell === 'key' ? styles.key : {},
       isRunner ? styles.runner : {},
+      isEnemy ? styles.enemy : {}, // Add this line to apply the enemy style when isEnemy is true
       isBlinking ? { backgroundColor: 'green' } : {},
-      isEnemy ? styles.enemy : {}, // Add this line to apply the enemy styles when isEnemy is true
     ]}
   >
     <Text style={{ color: 'transparent' }}>{cell}</Text>
@@ -48,15 +48,28 @@ const numCols = 12;
   };
 
   const initializeEnemy = (newMap) => {
-    let enemyX = numRows - 2;
-    let enemyY = Math.floor(Math.random() * numCols);
+    let foundSuitableEnemyPosition = false;
+    let newEnemyX = 0;
+    let newEnemyY = 0;
   
-    while (newMap[enemyX][enemyY] === 'obstacle' || newMap[enemyX][enemyY] === 'key') {
-      enemyY = Math.floor(Math.random() * numCols);
+    while (!foundSuitableEnemyPosition) {
+      newEnemyX = Math.floor(Math.random() * numRows);
+      newEnemyY = Math.floor(Math.random() * numCols);
+  
+      const runnerDistance = Math.sqrt(Math.pow(newEnemyX - runnerStartPosition.x, 2) + Math.pow(newEnemyY - runnerStartPosition.y, 2));
+  
+      if (
+        runnerDistance >= 20 &&
+        newMap[newEnemyX][newEnemyY] !== 'obstacle' &&
+        newMap[newEnemyX][newEnemyY] !== 'key'
+      ) {
+        foundSuitableEnemyPosition = true;
+      }
     }
   
-    setEnemyPosition({ x: enemyX, y: enemyY });
+    setEnemyPosition({ x: newEnemyX, y: newEnemyY });
   };
+  
 
   useEffect(() => {
     generateRandomMap();
@@ -79,6 +92,8 @@ const numCols = 12;
       setHasClearedObstacles(true);
     }
   }, [keyPiecesCollected, totalKeyPieces]);
+
+  
   
   const generateRandomMap = (startColumn) => {
     const numRows = 20;
@@ -212,7 +227,7 @@ const numCols = 12;
     }
   
     setRunnerPosition({ x: newRunnerX, y: newRunnerY });
-    initializeEnemy(newMap);
+    initializeEnemy(newMap, newRunnerX, newRunnerY);
     // Find a suitable enemy position, avoiding obstacles, keys, and the runner
   let foundSuitableEnemyPosition = false;
   let newEnemyX = 0;
@@ -433,17 +448,18 @@ const numCols = 12;
       {/* Render the map and runner */}
       <View style={styles.map}>
       {map.map((row, rowIndex) => (
-    <View key={rowIndex} style={styles.row}>
-      {row.map((cell, cellIndex) => (
-        <Cell
-          key={`${rowIndex}-${cellIndex}`}
-          cell={cell}
-          isRunner={runnerPosition.x === rowIndex && runnerPosition.y === cellIndex}
-          isBlinking={rowIndex === map.length - 1 && isBottomRowBlinking} // Pass the isBlinking prop to cells in the bottom row
-        />
-      ))}
-    </View>
-  ))}
+  <View key={rowIndex} style={styles.row}>
+    {row.map((cell, colIndex) => (
+      <Cell
+        key={colIndex}
+        cell={cell}
+        isRunner={runnerPosition.x === rowIndex && runnerPosition.y === colIndex}
+        isEnemy={enemyPosition.x === rowIndex && enemyPosition.y === colIndex} // Add this line
+        isBlinking={isBottomRowBlinking && rowIndex === numRows - 1}
+      />
+    ))}
+  </View>
+))}
 </View>
   
       {/* Render controls */}
