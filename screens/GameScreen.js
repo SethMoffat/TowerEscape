@@ -28,6 +28,7 @@ const Cell = React.memo(({ cell, isRunner, isBlinking }) => (
 const GameScreen = () => {
   const [map, setMap] = useState([]);
   const [runnerPosition, setRunnerPosition] = useState({ x: 0, y: 0 });
+  const [enemyPosition, setEnemyPosition] = useState({ x: 0, y: 0 }); // Add enemy position state
   const [score, setScore] = useState(0);
   const [totalKeyPieces, setTotalKeyPieces] = useState(0);
   const [keyPiecesCollected, setKeyPiecesCollected] = useState(0);
@@ -35,6 +36,9 @@ const GameScreen = () => {
   const [hasClearedObstacles, setHasClearedObstacles] = useState(false);
   const [isBottomRowBlinking, setIsBottomRowBlinking] = useState(false);
   const [blinkIntervalId, setBlinkIntervalId] = useState(null);
+  const numRows = 20;
+const numCols = 12;
+
   
   const navigation = useNavigation();
 
@@ -42,9 +46,30 @@ const GameScreen = () => {
     setIsPaused(!isPaused);
   };
 
+  const initializeEnemy = (newMap) => {
+    let enemyX = numRows - 2;
+    let enemyY = Math.floor(Math.random() * numCols);
+  
+    while (newMap[enemyX][enemyY] === 'obstacle' || newMap[enemyX][enemyY] === 'key') {
+      enemyY = Math.floor(Math.random() * numCols);
+    }
+  
+    setEnemyPosition({ x: enemyX, y: enemyY });
+  };
+
   useEffect(() => {
     generateRandomMap();
   }, []);
+
+  useEffect(() => {
+    // Update enemy position every second (1000 ms)
+    const enemyMoveInterval = setInterval(() => {
+      moveEnemyTowardsRunner();
+    }, 1000);
+
+    return () => clearInterval(enemyMoveInterval);
+  }, [enemyPosition, runnerPosition]);
+
 
   useEffect(() => {
     if (keyPiecesCollected === totalKeyPieces && map.length > 0) {
@@ -186,6 +211,71 @@ const GameScreen = () => {
     }
   
     setRunnerPosition({ x: newRunnerX, y: newRunnerY });
+    initializeEnemy(newMap);
+    // Find a suitable enemy position, avoiding obstacles, keys, and the runner
+  let foundSuitableEnemyPosition = false;
+  let newEnemyX = 0;
+  let newEnemyY = currentY;
+
+  while (!foundSuitableEnemyPosition) {
+    const positionsToCheck = [
+      { x: newEnemyX, y: newEnemyY - 1 },
+      { x: newEnemyX, y: newEnemyY + 1 },
+    ];
+
+    const positionIsValid = (position) =>
+      position.y >= 0 &&
+      position.y < numCols &&
+      newMap[position.x][position.y] !== 'obstacle' &&
+      newMap[position.x][position.y] !== 'key' &&
+      (position.x !== newRunnerX || position.y !== newRunnerY); // Avoid spawning on the runner
+
+    const validPositions = positionsToCheck.filter(positionIsValid);
+
+    if (validPositions.length > 0) {
+      const randomIndex = Math.floor(Math.random() * validPositions.length);
+      const newPosition = validPositions[randomIndex];
+      newEnemyY = newPosition.y;
+      foundSuitableEnemyPosition = true;
+    } else {
+      newEnemyY = Math.floor(Math.random() * numCols);
+    }
+  }
+
+  setEnemyPosition({ x: newEnemyX, y: newEnemyY }); // Set the enemy position
+  };
+
+  const moveEnemyTowardsRunner = () => {
+    const runnerX = runnerPosition.x;
+    const runnerY = runnerPosition.y;
+    const enemyX = enemyPosition.x;
+    const enemyY = enemyPosition.y;
+  
+    const dx = runnerX - enemyX;
+    const dy = runnerY - enemyY;
+  
+    let newEnemyX = enemyX;
+    let newEnemyY = enemyY;
+  
+    if (Math.abs(dx) > Math.abs(dy)) {
+      // Move horizontally
+      newEnemyX += dx > 0 ? 1 : -1;
+    } else {
+      // Move vertically
+      newEnemyY += dy > 0 ? 1 : -1;
+    }
+  
+    // Check if the new position is valid (not an obstacle or a key)
+    if (
+      newEnemyX >= 0 &&
+      newEnemyX < numRows &&
+      newEnemyY >= 0 &&
+      newEnemyY < numCols &&
+      map[newEnemyX][newEnemyY] !== 'obstacle' &&
+      map[newEnemyX][newEnemyY] !== 'key'
+    ) {
+      setEnemyPosition({ x: newEnemyX, y: newEnemyY });
+    }
   };
 
   const moveRunner = (direction) => {
