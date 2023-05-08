@@ -56,7 +56,7 @@ const numCols = 12;
       newEnemyX = Math.floor(Math.random() * numRows);
       newEnemyY = Math.floor(Math.random() * numCols);
   
-      const runnerDistance = Math.sqrt(Math.pow(newEnemyX - runnerStartPosition.x, 2) + Math.pow(newEnemyY - runnerStartPosition.y, 2));
+      const runnerDistance = Math.sqrt(Math.pow(newEnemyX - runnerPosition.x, 2) + Math.pow(newEnemyY - runnerPosition.y, 2));
   
       if (
         runnerDistance >= 20 &&
@@ -199,67 +199,59 @@ const numCols = 12;
   
     // Find a suitable runner position, avoiding obstacles and keys
     let foundSuitablePosition = false;
-    let newRunnerX = 0;
-    let newRunnerY = currentY;
+  let newRunnerX = 0;
+  let newRunnerY = currentY;
   
-    while (!foundSuitablePosition) {
+
+  // Check if the enemy is at least 20 blocks away from the runner
+  while (Math.abs(newEnemyX - newRunnerX) + Math.abs(newEnemyY - newRunnerY) < 20) {
+    newEnemyX++;
+    if (newEnemyX >= numRows - 1) {
+      break;
+    }
+  }
+
+  setRunnerPosition({ x: newRunnerX, y: newRunnerY });
+    initializeEnemy(newMap, newRunnerX, newRunnerY);
+    // Find a suitable enemy position, avoiding obstacles, keys, and the runner
+    let foundSuitableEnemyPosition = false;
+    let newEnemyX = 0;
+    let newEnemyY = currentY;
+
+    while (!foundSuitableEnemyPosition) {
       const positionsToCheck = [
-        { x: newRunnerX, y: newRunnerY - 1 },
-        { x: newRunnerX, y: newRunnerY + 1 },
+        { x: newEnemyX, y: newEnemyY - 1 },
+        { x: newEnemyX, y: newEnemyY + 1 },
       ];
-  
+
       const positionIsValid = (position) =>
         position.y >= 0 &&
         position.y < numCols &&
         newMap[position.x][position.y] !== 'obstacle' &&
-        newMap[position.x][position.y] !== 'key';
-  
+        newMap[position.x][position.y] !== 'key' &&
+        (position.x !== newRunnerX || position.y !== newRunnerY); // Avoid spawning on the runner
+
       const validPositions = positionsToCheck.filter(positionIsValid);
-  
+
       if (validPositions.length > 0) {
         const randomIndex = Math.floor(Math.random() * validPositions.length);
         const newPosition = validPositions[randomIndex];
-        newRunnerY = newPosition.y;
-        foundSuitablePosition = true;
+        newEnemyY = newPosition.y;
+        foundSuitableEnemyPosition = true;
       } else {
-        newRunnerY = Math.floor(Math.random() * numCols);
+        newEnemyY = Math.floor(Math.random() * numCols);
+      }
+
+      // Check if the enemy is not on the same position as the runner
+      if (newEnemyX !== newRunnerX || newEnemyY !== newRunnerY) {
+        foundSuitableEnemyPosition = true;
+      } else {
+        foundSuitableEnemyPosition = false;
       }
     }
-  
-    setRunnerPosition({ x: newRunnerX, y: newRunnerY });
-    initializeEnemy(newMap, newRunnerX, newRunnerY);
-    // Find a suitable enemy position, avoiding obstacles, keys, and the runner
-  let foundSuitableEnemyPosition = false;
-  let newEnemyX = 0;
-  let newEnemyY = currentY;
 
-  while (!foundSuitableEnemyPosition) {
-    const positionsToCheck = [
-      { x: newEnemyX, y: newEnemyY - 1 },
-      { x: newEnemyX, y: newEnemyY + 1 },
-    ];
-
-    const positionIsValid = (position) =>
-      position.y >= 0 &&
-      position.y < numCols &&
-      newMap[position.x][position.y] !== 'obstacle' &&
-      newMap[position.x][position.y] !== 'key' &&
-      (position.x !== newRunnerX || position.y !== newRunnerY); // Avoid spawning on the runner
-
-    const validPositions = positionsToCheck.filter(positionIsValid);
-
-    if (validPositions.length > 0) {
-      const randomIndex = Math.floor(Math.random() * validPositions.length);
-      const newPosition = validPositions[randomIndex];
-      newEnemyY = newPosition.y;
-      foundSuitableEnemyPosition = true;
-    } else {
-      newEnemyY = Math.floor(Math.random() * numCols);
-    }
-  }
-
-  setEnemyPosition({ x: newEnemyX, y: newEnemyY }); // Set the enemy position
-  };
+    setEnemyPosition({ x: newEnemyX, y: newEnemyY }); // Set the enemy position
+};
 
   const moveEnemyTowardsRunner = () => {
     if (!runnerPosition || !enemyPosition) {
@@ -274,29 +266,37 @@ const numCols = 12;
     const dx = runnerX - enemyX;
     const dy = runnerY - enemyY;
   
-    let newEnemyX = enemyX;
-    let newEnemyY = enemyY;
+    const newPositionIsValid = (x, y) =>
+      x >= 0 &&
+      x < numRows &&
+      y >= 0 &&
+      y < numCols &&
+      map[x][y] !== 'obstacle' &&
+      map[x][y] !== 'key';
   
-    if (Math.abs(dx) > Math.abs(dy)) {
-      // Move horizontally
-      newEnemyX += dx > 0 ? 1 : -1;
-    } else {
-      // Move vertically
-      newEnemyY += dy > 0 ? 1 : -1;
-    }
+    const possibleMoves = [
+      { x: enemyX + Math.sign(dx), y: enemyY },
+      { x: enemyX, y: enemyY + Math.sign(dy) },
+      { x: enemyX - Math.sign(dx), y: enemyY },
+      { x: enemyX, y: enemyY - Math.sign(dy) },
+    ];
   
-    // Check if the new position is valid (not an obstacle or a key)
-    if (
-      newEnemyX >= 0 &&
-      newEnemyX < numRows &&
-      newEnemyY >= 0 &&
-      newEnemyY < numCols &&
-      map[newEnemyX][newEnemyY] !== 'obstacle' &&
-      map[newEnemyX][newEnemyY] !== 'key'
-    ) {
-      setEnemyPosition({ x: newEnemyX, y: newEnemyY });
+    // Sort the moves based on their distance to the runner
+    possibleMoves.sort((moveA, moveB) => {
+      const distA = Math.hypot(moveA.x - runnerX, moveA.y - runnerY);
+      const distB = Math.hypot(moveB.x - runnerX, moveB.y - runnerY);
+      return distA - distB;
+    });
+  
+    // Find the first valid move that brings the enemy closer to the runner
+    for (const move of possibleMoves) {
+      if (newPositionIsValid(move.x, move.y)) {
+        setEnemyPosition(move);
+        break;
+      }
     }
   };
+  
 
   const aStarPathfinding = (map, start, end) => {
     const openSet = [start];
