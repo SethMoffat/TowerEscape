@@ -75,14 +75,16 @@ const numCols = 12;
     generateRandomMap();
   }, []);
 
-  useEffect(() => {
-    // Update enemy position every second (1000 ms)
-    const enemyMoveInterval = setInterval(() => {
-      moveEnemyTowardsRunner();
-    }, 1000);
+  const enemyMoveInterval = React.useRef(null); // Add this line after other state variables
 
-    return () => clearInterval(enemyMoveInterval);
-  }, [enemyPosition, runnerPosition]);
+useEffect(() => {
+  // Update enemy position every second (1000 ms)
+  enemyMoveInterval.current = setInterval(() => {
+    moveEnemyTowardsRunner();
+  }, 1000);
+
+  return () => clearInterval(enemyMoveInterval.current);
+}, []); // Remove the dependencies
 
 
   useEffect(() => {
@@ -201,19 +203,19 @@ const numCols = 12;
   
     // Find a suitable runner position, avoiding obstacles and keys
     let foundSuitablePosition = false;
-    let newRunnerX = 0;
-    let newRunnerY = currentY;
+  let newRunnerX = 0;
+  let newRunnerY = currentY;
 
-    while (!foundSuitablePosition) {
-      if (newMap[newRunnerX][newRunnerY] === 'empty') {
-        foundSuitablePosition = true;
-      } else {
-        newRunnerY = (newRunnerY + 1) % numCols;
-      }
+  while (!foundSuitablePosition) {
+    if (newMap[newRunnerX][newRunnerY] === 'empty') {
+      foundSuitablePosition = true;
+    } else {
+      newRunnerY = (newRunnerY + 1) % numCols;
     }
+  }
 
-    setRunnerPosition({ x: newRunnerX, y: newRunnerY });
-    initializeEnemy(newMap, newRunnerX, newRunnerY);
+  setRunnerPosition({ x: newRunnerX, y: newRunnerY });
+  initializeEnemy(newMap); // Call initializeEnemy with the newMap
     // Find a suitable enemy position, avoiding obstacles, keys, and the runner
     let foundSuitableEnemyPosition = false;
     let newEnemyX = 0;
@@ -402,8 +404,10 @@ const numCols = 12;
   };
 
   const restartGame = () => {
+    clearInterval(enemyMoveInterval.current); // Clear the enemy move interval
+    setHasClearedObstacles(false);
     generateRandomMap();
-    setScore(0);
+    setScore(0)
   };
   
   const clearBottomRowObstacles = (mapToClear) => {
