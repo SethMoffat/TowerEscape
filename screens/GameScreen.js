@@ -102,6 +102,8 @@ const numCols = 12;
       Array.from({ length: numCols }, () => 'empty')
     );
     setIsBottomRowBlinking(false);
+
+    newMap[numRows - 1].fill('empty'); // Clear the bottom row
   
     const hasKeyNeighbor = (newMap, x, y) => {
       const numRows = newMap.length;
@@ -199,19 +201,18 @@ const numCols = 12;
   
     // Find a suitable runner position, avoiding obstacles and keys
     let foundSuitablePosition = false;
-  let newRunnerX = 0;
-  let newRunnerY = currentY;
-  
+    let newRunnerX = 0;
+    let newRunnerY = currentY;
 
-  // Check if the enemy is at least 20 blocks away from the runner
-  while (Math.abs(newEnemyX - newRunnerX) + Math.abs(newEnemyY - newRunnerY) < 20) {
-    newEnemyX++;
-    if (newEnemyX >= numRows - 1) {
-      break;
+    while (!foundSuitablePosition) {
+      if (newMap[newRunnerX][newRunnerY] === 'empty') {
+        foundSuitablePosition = true;
+      } else {
+        newRunnerY = (newRunnerY + 1) % numCols;
+      }
     }
-  }
 
-  setRunnerPosition({ x: newRunnerX, y: newRunnerY });
+    setRunnerPosition({ x: newRunnerX, y: newRunnerY });
     initializeEnemy(newMap, newRunnerX, newRunnerY);
     // Find a suitable enemy position, avoiding obstacles, keys, and the runner
     let foundSuitableEnemyPosition = false;
