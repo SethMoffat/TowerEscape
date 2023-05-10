@@ -77,14 +77,16 @@ const numCols = 12;
 
   const enemyMoveInterval = React.useRef(null); // Add this line after other state variables
 
-useEffect(() => {
-  // Update enemy position every second (1000 ms)
-  enemyMoveInterval.current = setInterval(() => {
-    moveEnemyTowardsRunner();
-  }, 1000);
-
-  return () => clearInterval(enemyMoveInterval.current);
-}, []); // Remove the dependencies
+  useEffect(() => {
+    if (runnerPosition && enemyPosition) {  // check if runnerPosition and enemyPosition are defined
+      // Update enemy position every second (1000 ms)
+      enemyMoveInterval.current = setInterval(() => {
+        moveEnemyTowardsRunner();
+      }, 1000);
+  
+      return () => clearInterval(enemyMoveInterval.current);
+    }
+  }, [runnerPosition, enemyPosition]);  // add runnerPosition and enemyPosition as dependencies
 
 
   useEffect(() => {
