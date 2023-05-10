@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
+
 const SettingScreen = () => {
   const navigation = useNavigation();
   const [isClassicMode, setIsClassicMode] = useState(true);
