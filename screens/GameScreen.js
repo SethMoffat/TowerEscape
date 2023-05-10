@@ -198,64 +198,67 @@ const numCols = 12;
       (count, row) => count + row.filter((cell) => cell === 'key').length,
       0
     );
-  
+
     setTotalKeyPieces(keyPieceCount);
     setKeyPiecesCollected(0); // Reset key pieces collected
-    setMap(newMap);
-  
+
     // Find a suitable runner position, avoiding obstacles and keys
     let foundSuitablePosition = false;
-  let newRunnerX = 0;
-  let newRunnerY = currentY;
+    let newRunnerX = 0;
+    let newRunnerY = currentY;
 
-  while (!foundSuitablePosition) {
-    if (newMap[newRunnerX][newRunnerY] === 'empty') {
-      foundSuitablePosition = true;
-    } else {
-      newRunnerY = (newRunnerY + 1) % numCols;
+    while (!foundSuitablePosition) {
+        if (newMap[newRunnerX][newRunnerY] === 'empty') {
+            foundSuitablePosition = true;
+        } else {
+            newRunnerY = (newRunnerY + 1) % numCols;
+        }
     }
-  }
 
-  setRunnerPosition({ x: newRunnerX, y: newRunnerY });
-  initializeEnemy(newMap); // Call initializeEnemy with the newMap
+    setRunnerPosition({ x: newRunnerX, y: newRunnerY });
+    initializeEnemy(newMap); // Call initializeEnemy with the newMap
+
     // Find a suitable enemy position, avoiding obstacles, keys, and the runner
     let foundSuitableEnemyPosition = false;
     let newEnemyX = 0;
     let newEnemyY = currentY;
 
     while (!foundSuitableEnemyPosition) {
-      const positionsToCheck = [
-        { x: newEnemyX, y: newEnemyY - 1 },
-        { x: newEnemyX, y: newEnemyY + 1 },
-      ];
+        const positionsToCheck = [
+            { x: newEnemyX, y: newEnemyY - 1 },
+            { x: newEnemyX, y: newEnemyY + 1 },
+        ];
 
-      const positionIsValid = (position) =>
-        position.y >= 0 &&
-        position.y < numCols &&
-        newMap[position.x][position.y] !== 'obstacle' &&
-        newMap[position.x][position.y] !== 'key' &&
-        (position.x !== newRunnerX || position.y !== newRunnerY); // Avoid spawning on the runner
+        const positionIsValid = (position) =>
+            position.y >= 0 &&
+            position.y < numCols &&
+            newMap[position.x][position.y] !== 'obstacle' &&
+            newMap[position.x][position.y] !== 'key' &&
+            (position.x !== newRunnerX || position.y !== newRunnerY); // Avoid spawning on the runner
 
-      const validPositions = positionsToCheck.filter(positionIsValid);
+        const validPositions = positionsToCheck.filter(positionIsValid);
 
-      if (validPositions.length > 0) {
-        const randomIndex = Math.floor(Math.random() * validPositions.length);
-        const newPosition = validPositions[randomIndex];
-        newEnemyY = newPosition.y;
-        foundSuitableEnemyPosition = true;
-      } else {
-        newEnemyY = Math.floor(Math.random() * numCols);
-      }
+        if (validPositions.length > 0) {
+            const randomIndex = Math.floor(Math.random() * validPositions.length);
+            const newPosition = validPositions[randomIndex];
+            newEnemyY = newPosition.y;
+            foundSuitableEnemyPosition = true;
+        } else {
+            newEnemyY = Math.floor(Math.random() * numCols);
+        }
 
-      // Check if the enemy is not on the same position as the runner
-      if (newEnemyX !== newRunnerX || newEnemyY !== newRunnerY) {
-        foundSuitableEnemyPosition = true;
-      } else {
-        foundSuitableEnemyPosition = false;
-      }
+        // Check if the enemy is not on the same position as the runner
+        if (newEnemyX !== newRunnerX || newEnemyY !== newRunnerY) {
+            foundSuitableEnemyPosition = true;
+        } else {
+            foundSuitableEnemyPosition = false;
+        }
     }
 
     setEnemyPosition({ x: newEnemyX, y: newEnemyY }); // Set the enemy position
+
+    // Now that we have updated the runner and enemy positions, we can set the new map.
+    setMap(newMap);
 };
 
   const moveEnemyTowardsRunner = () => {
