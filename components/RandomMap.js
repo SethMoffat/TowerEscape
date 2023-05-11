@@ -32,34 +32,39 @@ const screenHeight = Dimensions.get('window').height;
 // Calculate cell size based on the screen size and number of cells
 const cellSize = Math.min(screenWidth / gridSize.columns, screenHeight / gridSize.rows);
 
-const RandomMap = ({ playerPosition, map }) => {
-  return (
-    <View style={{ flexDirection: 'column' }}>
-      {map.map((row, rowIndex) => (
-        <View key={rowIndex} style={{ flexDirection: 'row', height: cellSize }}>
-          {row.map((cell, columnIndex) => (
-            <View
-              key={columnIndex}
-              style={{
-                width: cellSize,
-                height: cellSize,
-                backgroundColor: 
-                  playerPosition.row === rowIndex && playerPosition.column === columnIndex
-                    ? 'blue'
-                    : cell === 'obstacle' 
-                      ? 'red' 
-                      : cell === 'key' 
-                        ? 'yellow' 
-                        : 'transparent',
-                borderWidth: 1,
-                borderColor: 'black',
-              }}
-            />
-          ))}
-        </View>
-      ))}
-    </View>
-  );
-};
+const RandomMap = ({ playerPosition, enemyPosition, map }) => {
+    return (
+      <View style={{ flexDirection: 'column' }}>
+        {map.map((row, rowIndex) => (
+          <View key={rowIndex} style={{ flexDirection: 'row', height: cellSize }}>
+            {row.map((cell, columnIndex) => {
+              let backgroundColor = 'transparent';
+              if (playerPosition.row === rowIndex && playerPosition.column === columnIndex) {
+                backgroundColor = 'blue'; // player color
+              } else if (enemyPosition.row === rowIndex && enemyPosition.column === columnIndex) {
+                backgroundColor = 'purple'; // enemy color
+              } else if (cell === 'obstacle') {
+                backgroundColor = 'red'; // obstacle color
+              } else if (cell === 'key') {
+                backgroundColor = 'yellow'; // key color
+              }
+              return (
+                <View
+                  key={columnIndex}
+                  style={{
+                    width: cellSize,
+                    height: cellSize,
+                    backgroundColor: backgroundColor,
+                    borderWidth: 1,
+                    borderColor: 'black',
+                  }}
+                />
+              );
+            })}
+          </View>
+        ))}
+      </View>
+    );
+  };
 
 export default RandomMap;

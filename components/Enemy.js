@@ -1,17 +1,38 @@
 import React, { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import PF from 'pathfinding';
+import PriorityQueue from 'priority-queue';
+import {map} from '../components/RandomMap'
 
-const Enemy = ({ playerPosition, enemyPosition, map, gridSize, onEnemyMove }) => {
+const Enemy = () => {
   const [path, setPath] = useState([]);
+  const numericMap = map.map(row => row.map(cell => (cell === 'obstacle' ? 1 : 0)));
 
   useEffect(() => {
-    const finder = new PF.AStarFinder();
-    const grid = new PF.Grid(gridSize.columns, gridSize.rows, map); // Note the order change here
+    // Initialize the priority queue to be empty.
+    const priorityQueue = new PriorityQueue();
 
-    const path = finder.findPath(enemyPosition.column, enemyPosition.row, playerPosition.column, playerPosition.row, grid); // And here
+    // Add the starting point to the priority queue.
+    priorityQueue.add(enemyPosition, 0);
 
-    setPath(path);
+    // While the priority queue is not empty:
+    while (!priorityQueue.isEmpty()) {
+      // Remove the node with the lowest cost from the priority queue.
+      const node = priorityQueue.remove();
+
+      // If the removed node is the destination point, then we have found the shortest path.
+      if (node === playerPosition) {
+        setPath(node.path);
+        break;
+      }
+
+      // Otherwise, add all of the removed node's neighbors to the priority queue.
+      for (const neighbor of grid[node.row][node.column].neighbors) {
+        if (numericMap[neighbor.row][neighbor.column] === 0) {
+          priorityQueue.add(neighbor, node.cost + 1);
+        }
+      }
+    }
   }, [playerPosition, enemyPosition, map]);
 
   useEffect(() => {
