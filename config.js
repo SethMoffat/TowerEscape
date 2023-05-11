@@ -1,0 +1,1 @@
+export const gridSize = { rows: 20, columns: 12 };
