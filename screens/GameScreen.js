@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { StyleSheet, View, TouchableOpacity, Text } from 'react-native';
 import RandomMap, { generateMap } from '../components/RandomMap';
 import { gridSize } from '../config';
@@ -10,6 +10,18 @@ const GameScreen = () => {
   const [playerPosition, setPlayerPosition] = useState(initialPlayerPosition);
   const [map, setMap] = useState(generateMap());
   const [enemyPosition, setEnemyPosition] = useState({ row: gridSize.rows - 2, column: gridSize.columns / 2 });
+  const [allKeysCollected, setAllKeysCollected] = useState(false); // New state variable to track whether all keys have been collected
+
+  const playerPositionRef = useRef(playerPosition);
+  const enemyPositionRef = useRef(enemyPosition);
+
+  useEffect(() => {
+    playerPositionRef.current = playerPosition;
+  }, [playerPosition]);
+
+  useEffect(() => {
+    enemyPositionRef.current = enemyPosition;
+  }, [enemyPosition]);
 
   // Check if the player is on the same space as a key
   useEffect(() => {
@@ -36,12 +48,13 @@ const GameScreen = () => {
       let newMap = [...map];
       newMap[gridSize.rows - 1] = Array(gridSize.columns).fill('empty');
       setMap(newMap);
+      setAllKeysCollected(true); // All keys have been collected
     }
   }, [playerPosition]);
 
-  const movePlayer = (direction) => {
-    let newPosition = { ...playerPosition };
-
+  const movePlayer = useCallback((direction) => {
+    let newPosition = { ...playerPositionRef.current };
+  
     switch (direction) {
       case 'up':
         newPosition.row = Math.max(0, newPosition.row - 1);
@@ -60,39 +73,43 @@ const GameScreen = () => {
     // Check if the new position is an obstacle
     if (map[newPosition.row][newPosition.column] !== 'obstacle') {
       setPlayerPosition(newPosition);
+      playerPositionRef.current = newPosition;
     }
 
     // If the player has reached the last row, reset the player's position and generate a new map
-    if (newPosition.row === gridSize.rows - 1) {
+    if (newPosition.row === gridSize.rows - 1 && allKeysCollected) {
       setPlayerPosition(initialPlayerPosition);
+      playerPositionRef.current = initialPlayerPosition;
       setMap(generateMap());
+      setAllKeysCollected(false); // Reset the allKeysCollected state to false for the new map
     }
-  };
+  }, [allKeysCollected, map]);
 
   // Move the enemy towards the player at regular intervals
   useEffect(() => {
     const intervalId = setInterval(() => {
-      let enemyNewPosition = { ...enemyPosition };
-      if (enemyPosition.row < playerPosition.row) {
+      let enemyNewPosition = { ...enemyPositionRef.current };
+      if (enemyPositionRef.current.row < playerPositionRef.current.row) {
         enemyNewPosition.row += 1;
-      } else if (enemyPosition.row > playerPosition.row) {
+      } else if (enemyPositionRef.current.row > playerPositionRef.current.row) {
         enemyNewPosition.row -= 1;
       }
-
-      if (enemyPosition.column < playerPosition.column) {
+  
+      if (enemyPositionRef.current.column < playerPositionRef.current.column) {
         enemyNewPosition.column += 1;
-      } else if (enemyPosition.column > playerPosition.column) {
+      } else if (enemyPositionRef.current.column > playerPositionRef.current.column) {
         enemyNewPosition.column -= 1;
       }
-
+  
       // Check if the new position is an obstacle
-      if (map[enemyNewPosition.row][enemyNewPosition.column] !== 'obstacle' && enemyNewPosition !== playerPosition) {
+      if (map[enemyNewPosition.row][enemyNewPosition.column] !== 'obstacle' && 
+          !(enemyNewPosition.row === playerPositionRef.current.row && enemyNewPosition.column === playerPositionRef.current.column)) {
         setEnemyPosition(enemyNewPosition);
       }
     }, 500); // 500ms interval for enemy movement
-
+  
     return () => clearInterval(intervalId); // Clean up on component unmount
-  }, [enemyPosition, playerPosition, map]);
+  }, []); // Empty dependency array
 
   return (
     <View style={styles.container}>
@@ -100,14 +117,22 @@ const GameScreen = () => {
       <Enemy playerPosition={playerPosition} enemyPosition={enemyPosition} map={map} gridSize={gridSize} />
       <View style={styles.controller}>
         <View style={styles.verticalController}>
-          <TouchableOpacity onPress={() => movePlayer('up')} style={styles.button}><Text style={styles.buttonText}>Up</Text></TouchableOpacity>
+          <TouchableOpacity style={styles.button} onPress={() => movePlayer('up')}>
+            <Text style={styles.buttonText}>Up</Text>
+          </TouchableOpacity>
         </View>
         <View style={styles.horizontalController}>
-          <TouchableOpacity onPress={() => movePlayer('left')} style={styles.button}><Text style={styles.buttonText}>Left</Text></TouchableOpacity>
-          <TouchableOpacity onPress={() => movePlayer('right')} style={styles.button}><Text style={styles.buttonText}>Right</Text></TouchableOpacity>
+          <TouchableOpacity style={styles.button} onPress={() => movePlayer('left')}>
+            <Text style={styles.buttonText}>Left</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.button} onPress={() => movePlayer('right')}>
+            <Text style={styles.buttonText}>Right</Text>
+          </TouchableOpacity>
         </View>
         <View style={styles.verticalController}>
-          <TouchableOpacity onPress={() => movePlayer('down')} style={styles.button}><Text style={styles.buttonText}>Down</Text></TouchableOpacity>
+          <TouchableOpacity style={styles.button} onPress={() => movePlayer('down')}>
+            <Text style={styles.buttonText}>Down</Text>
+          </TouchableOpacity>
         </View>
       </View>
     </View>

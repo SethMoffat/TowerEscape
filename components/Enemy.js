@@ -1,45 +1,36 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, memo } from 'react';
 import { View } from 'react-native';
 import PF from 'pathfinding';
-import PriorityQueue from 'priority-queue';
-import {map} from '../components/RandomMap'
+import { throttle } from 'lodash';
+import { map } from '../components/RandomMap';
 
-const Enemy = ({ playerPosition, enemyPosition, onEnemyMove }) => {
+const Enemy = memo(({ playerPosition, enemyPosition, onEnemyMove }) => {
   const [path, setPath] = useState([]);
-  let numericMap;
+  const [grid, setGrid] = useState(null);
 
   useEffect(() => {
     if (!map) {
       return;
     }
 
-    numericMap = map.map(row => row.map(cell => (cell === 'obstacle' ? 1 : 0)));
+    const numericMap = map.map(row => row.map(cell => (cell === 'obstacle' ? 1 : 0)));
+    setGrid(new PF.Grid(numericMap));
+  }, [map]);
 
-    // Initialize the priority queue to be empty.
-    const priorityQueue = new PriorityQueue();
-
-    // Add the starting point to the priority queue.
-    priorityQueue.add(enemyPosition, 0);
-
-    // While the priority queue is not empty:
-    while (!priorityQueue.isEmpty()) {
-      // Remove the node with the lowest cost from the priority queue.
-      const node = priorityQueue.remove();
-
-      // If the removed node is the destination point, then we have found the shortest path.
-      if (node === playerPosition) {
-        setPath(node.path);
-        break;
-      }
-
-      // Otherwise, add all of the removed node's neighbors to the priority queue.
-      for (const neighbor of grid[node.row][node.column].neighbors) {
-        if (numericMap[neighbor.row][neighbor.column] === 0) {
-          priorityQueue.add(neighbor, node.cost + 1);
-        }
-      }
+  const calculatePath = throttle(() => {
+    if (!grid) {
+      return;
     }
-  }, [playerPosition, enemyPosition, map]);
+
+    const finder = new PF.AStarFinder();
+    const path = finder.findPath(enemyPosition.column, enemyPosition.row, playerPosition.column, playerPosition.row, grid.clone());
+
+    setPath(path);
+  }, 500); // Only calculate the path at most once every 500ms
+
+  useEffect(() => {
+    calculatePath();
+  }, [calculatePath]);
 
   useEffect(() => {
     const move = () => {
@@ -56,6 +47,6 @@ const Enemy = ({ playerPosition, enemyPosition, onEnemyMove }) => {
   return (
     <View style={{ position: 'absolute', top: enemyPosition.row * 100, left: enemyPosition.column * 100, width: 100, height: 100, backgroundColor: 'purple' }} />
   );
-};
+});
 
 export default Enemy;
