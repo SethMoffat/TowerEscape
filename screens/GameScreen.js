@@ -99,12 +99,16 @@ const GameScreen = () => {
       <RandomMap playerPosition={playerPosition} enemyPosition={enemyPosition} map={map} />
       <Enemy playerPosition={playerPosition} enemyPosition={enemyPosition} map={map} gridSize={gridSize} />
       <View style={styles.controller}>
-        <TouchableOpacity onPress={() => movePlayer('up')} style={styles.button}><Text>Up</Text></TouchableOpacity>
-        <View style={styles.horizontalController}>
-          <TouchableOpacity onPress={() => movePlayer('left')} style={styles.button}><Text>Left</Text></TouchableOpacity>
-          <TouchableOpacity onPress={() => movePlayer('right')} style={styles.button}><Text>Right</Text></TouchableOpacity>
+        <View style={styles.verticalController}>
+          <TouchableOpacity onPress={() => movePlayer('up')} style={styles.button}><Text style={styles.buttonText}>Up</Text></TouchableOpacity>
         </View>
-        <TouchableOpacity onPress={() => movePlayer('down')} style={styles.button}><Text>Down</Text></TouchableOpacity>
+        <View style={styles.horizontalController}>
+          <TouchableOpacity onPress={() => movePlayer('left')} style={styles.button}><Text style={styles.buttonText}>Left</Text></TouchableOpacity>
+          <TouchableOpacity onPress={() => movePlayer('right')} style={styles.button}><Text style={styles.buttonText}>Right</Text></TouchableOpacity>
+        </View>
+        <View style={styles.verticalController}>
+          <TouchableOpacity onPress={() => movePlayer('down')} style={styles.button}><Text style={styles.buttonText}>Down</Text></TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -113,20 +117,21 @@ const GameScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#F5FCFF',
+    backgroundColor: '#222831',
+    padding: 20,
   },
   grid: {
-    width: '80%',
+    width: '90%',
     height: '70%',
     flexDirection: 'column',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'white',
-    borderColor: 'black',
-    borderWidth: 1,
-    borderRadius: 5,
+    backgroundColor: '#393e46',
+    borderColor: '#00adb5',
+    borderWidth: 2,
+    borderRadius: 10,
   },
   gridRow: {
     flex: 1,
@@ -134,27 +139,40 @@ const styles = StyleSheet.create({
   },
   gridCell: {
     flex: 1,
-    borderColor: 'gray',
+    borderColor: '#eeeeee',
     borderWidth: 1,
   },
   controller: {
-    position: 'absolute',
-    bottom: 50,
     flexDirection: 'column',
+    justifyContent: 'center',
     alignItems: 'center',
+    width: '100%',
+    padding: 10,
   },
   horizontalController: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    width: '50%',
+    width: '60%',
+  },
+  verticalController: {
+    flexDirection: 'column',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
   },
   button: {
     padding: 10,
-    margin: 5,
-    backgroundColor: '#c6c6c6',
-    borderRadius: 10,
+    backgroundColor: '#00adb5',
+    borderRadius: 5, // Reduce the border radius to make the buttons less round
     justifyContent: 'center',
     alignItems: 'center',
+    width: 60, // Reduce the width to make the buttons smaller
+    height: 50, // Reduce the height to make the buttons smaller
+  },
+  buttonText: {
+    color: '#eeeeee',
+    fontWeight: 'bold',
+    fontSize: 12, // Reduce the font size to fit the smaller buttons
   },
 });
 

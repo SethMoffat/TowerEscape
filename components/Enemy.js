@@ -4,11 +4,17 @@ import PF from 'pathfinding';
 import PriorityQueue from 'priority-queue';
 import {map} from '../components/RandomMap'
 
-const Enemy = () => {
+const Enemy = ({ playerPosition, enemyPosition, onEnemyMove }) => {
   const [path, setPath] = useState([]);
-  const numericMap = map.map(row => row.map(cell => (cell === 'obstacle' ? 1 : 0)));
+  let numericMap;
 
   useEffect(() => {
+    if (!map) {
+      return;
+    }
+
+    numericMap = map.map(row => row.map(cell => (cell === 'obstacle' ? 1 : 0)));
+
     // Initialize the priority queue to be empty.
     const priorityQueue = new PriorityQueue();
 
